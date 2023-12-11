@@ -1,0 +1,272 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta tags for character set and viewport settings -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Title of the webpage -->
+    <title>User Data Dashboard</title>
+    
+    <!-- External libraries: jQuery, Bootstrap, and Google Charts -->
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    
+    <!-- Script for loading Google Charts and drawing charts -->
+    <script type="text/javascript">
+        google.charts.load('current', { 'packages': ['corechart'] });
+        google.charts.setOnLoadCallback(drawCharts);
+
+        // Function to draw different types of charts
+        function drawCharts() {
+            $.ajax({
+                url: '/api/data',  // Your Flask API route to get all items
+                dataType: 'json',
+                success: function (data) {
+                    drawBarChart(data);
+                    drawPieChart(data);
+                    drawColumnChart(data);
+                }
+            });
+        }
+
+        // Function to draw a bar chart for occupation distribution
+        function drawBarChart(data) {
+            var occupationCount = {};
+
+            for (var i = 0; i < data.length; i++) {
+                var occupation = data[i].occupation;
+
+                // Increment count for the occupation
+                occupationCount[occupation] = (occupationCount[occupation] || 0) + 1;
+            }
+
+            // Convert occupationCount to chartData
+            var chartData = [['Occupation', 'Number of Users']];
+            for (var occupation in occupationCount) {
+                chartData.push([occupation, occupationCount[occupation]]);
+            }
+
+            var chartDataTable = google.visualization.arrayToDataTable(chartData);
+
+            // Chart options
+            var options = {
+                title: 'Occupation Distribution',
+                chartArea: { width: '50%' },
+                hAxis: { title: 'Occupation' },
+                vAxis: { title: 'Number of Users' }
+            };
+
+            // Create and draw the chart
+            var chart = new google.visualization.BarChart(document.getElementById('bar_chart_div'));
+            chart.draw(chartDataTable, options);
+        } 
+
+        function drawPieChart(data) {
+            var chartData = [['Gender', 'Count']];
+            var genderCount = { 'M': 0, 'F': 0 };
+
+            // Process the data
+            for (var i = 0; i < data.length; i++) {
+                genderCount[data[i].gender]++;
+            }
+
+            // Convert genderCount to chartData
+            for (var gender in genderCount) {
+                chartData.push([gender, genderCount[gender]]);
+            }
+
+            var chartDataTable = google.visualization.arrayToDataTable(chartData);
+
+            // Chart options
+            var options = {
+                title: 'Gender Distribution'
+            };
+
+            // Create and draw the chart
+            var chart = new google.visualization.PieChart(document.getElementById('pie_chart_div'));
+            chart.draw(chartDataTable, options);
+        }
+
+        function drawColumnChart(data) {
+            var chartData = [['Age', 'Count']];
+            var ageCount = {};
+
+            // Process the data
+            for (var i = 0; i < data.length; i++) {
+                var age = data[i].age.toString();
+                ageCount[age] = (ageCount[age] || 0) + 1;
+            }
+
+            // Convert ageCount to chartData
+            for (var age in ageCount) {
+                chartData.push([age, ageCount[age]]);
+            }
+
+            var chartDataTable = google.visualization.arrayToDataTable(chartData);
+
+            // Chart options
+            var options = {
+                title: 'Age Distribution',
+                hAxis: { title: 'Age', minValue: 0 },
+                vAxis: { title: 'Count' }
+            };
+
+            // Create and draw the chart
+            var chart = new google.visualization.ColumnChart(document.getElementById('column_chart_div'));
+            chart.draw(chartDataTable, options);
+        }
+
+        // Function to handle UI changes based on user selection
+        function handleUserSelection() {
+            var selectedOption = $('#api-endpoint').val();
+
+            // Hide all input boxes initially
+            $('#user-input-group, #start-input-box, #end-input-box').hide();
+
+            // Show input boxes based on user selection
+            if (selectedOption === 'id') {
+                $('#user-input-group').show();
+            } else if (selectedOption === 'range') {
+                $('#start-input-box, #end-input-box').show();
+            }
+        }
+        $(document).ready(function () {
+		// Call handleUserSelection on document ready
+                 handleUserSelection();
+            });
+
+        // Function to handle API request based on user input
+        function handleApiRequest() {
+            var apiEndpoint = $('#api-endpoint').val();
+            var userInput = $('#user-input').val();
+            var startInput = $('#start-input').val();
+            var endInput = $('#end-input').val();
+            console.log(userInput)
+
+            var apiUrl = '/api/data';
+
+            if (apiEndpoint === 'range') {
+                apiUrl = '/api/data/range?start_age=' + startInput + '&end_age=' + endInput;
+            } else if (apiEndpoint === 'id') {
+                apiUrl = '/api/data/' + userInput;
+            }
+
+            // Fetch data using AJAX
+            $.ajax({
+                url: apiUrl,
+                dataType: 'json',
+                success: function (data) {
+
+                    console.log(data+"\\")
+
+                    // Update the table
+                    updateResultTable(data);
+                }
+            });
+        }
+        // Function to update the result table
+    function updateResultTable(data) {
+        // Clear existing table content
+        $('#result-table').empty();
+
+        // Create a new table element with Bootstrap classes
+        var table = $('<table class="table table-bordered table-striped"></table>');
+
+        // Add table headers with Bootstrap classes
+        var thead = $('<thead class="thead-dark"><tr><th>User ID</th><th>Age</th><th>Gender</th><th>Occupation</th><th>Zip Code</th></tr></thead>');
+        table.append(thead);
+
+        // Add table rows with data
+        var tbody = $('<tbody></tbody>');
+
+        if (Array.isArray(data)) {
+        // If data is an array (multiple items)
+        for (var i = 0; i < data.length; i++) {
+            var row = $('<tr></tr>');
+            row.append('<td>' + data[i].user_id + '</td>');
+            row.append('<td>' + data[i].age + '</td>');
+            row.append('<td>' + data[i].gender + '</td>');
+            row.append('<td>' + data[i].occupation + '</td>');
+            row.append('<td>' + data[i].zip_code + '</td>');
+            tbody.append(row);
+        }
+    } else if (typeof data === 'object') {
+        // If data is a single object
+        var row = $('<tr></tr>');
+        row.append('<td>' + data.user_id + '</td>');
+        row.append('<td>' + data.age + '</td>');
+        row.append('<td>' + data.gender + '</td>');
+        row.append('<td>' + data.occupation + '</td>');
+        row.append('<td>' + data.zip_code + '</td>');
+        tbody.append(row);
+    }
+        table.append(tbody);
+
+        // Append the table to the result-table div
+        $('#result-table').append(table);
+    }
+    </script>
+</head>
+<body>
+    <!-- HTML body content -->
+
+    <!-- Container for the User Data Dashboard -->
+    <div class="container mt-5">
+        <h1 class="mb-4">User Data Dashboard</h1>
+
+        <!-- Input fields for interacting with API -->
+        <div class="form-group row">
+            <label for="api-endpoint" class="col-sm-2 col-form-label">API Endpoint:</label>
+            <div class="col-sm-4">
+                <select class="form-control" id="api-endpoint" onchange="handleUserSelection()">
+                    <option value="all">Get All Items</option>
+                    <option value="range">Get Range of Items</option>
+                    <option value="id">Get Item by ID</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Input box for ID -->
+        <div class="form-group row" id="user-input-group" style="display: none;">
+            <label for="user-input" class="col-sm-2 col-form-label">User Input:</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="user-input" placeholder="Enter ID">
+            </div>
+        </div>
+
+        <!-- Input boxes for Range -->
+        <div class="form-group row" id="start-input-box">
+            <label for="start-input" class="col-sm-2 col-form-label">Start Input:</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="start-input" placeholder="Start Age">
+            </div>
+        </div>
+
+        <div class="form-group row" id="end-input-box">
+            <label for="end-input" class="col-sm-2 col-form-label">End Input:</label>
+            <div class="col-sm-4">
+                <input type="text" class="form-control" id="end-input" placeholder="End Age">
+            </div>
+        </div>
+
+        <div class="form-group row">
+            <div class="col-sm-6">
+                <button type="button" class="btn btn-primary" onclick="handleApiRequest()">Submit</button>
+            </div>
+        </div>
+
+        <!-- Placeholder for the table -->
+        <div id="result-table" class="mt-4"></div>
+
+
+        <!-- Display the charts -->
+        <div id="bar_chart_div" class="mb-5" style="width: 800px; height: 400px;"></div>
+        <div id="pie_chart_div" class="mb-5" style="width: 800px; height: 400px;"></div>
+        <div id="column_chart_div" class="mb-5" style="width: 800px; height: 400px;"></div>
+    </div>
+
+</body>
+</html>
